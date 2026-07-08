@@ -1,5 +1,6 @@
 from django.db import models
 from accounts.models import *
+from django.core.exceptions import ValidationError, PermissionDenied
 # Create your models here.
 
 class Venue(models.Model):
@@ -37,6 +38,14 @@ class Venue(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
+
+        if self.owner.role != 'owner':
+
+            raise PermissionDenied(
+                "Only owner users can add venues."
+            )
+        
+
         if self.capacity <= 200:
 
             self.capacity_category = 'intimate'

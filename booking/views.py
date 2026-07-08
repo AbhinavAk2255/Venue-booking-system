@@ -55,6 +55,7 @@ class ListBookingView(ListAPIView):
             customer = self.request.user
         ).order_by('-created_at')
     
+    
 class BookingOwnerView(ListAPIView):
     
     serializer_class = BookingSerializer
@@ -68,6 +69,15 @@ class BookingOwnerView(ListAPIView):
         return Booking.objects.filter(
             venue__owner = self.request.user
         ).order_by('-created_at')
+    
+
+# class BookingUpdateView(APIView):
+#     permission_classes = []
+
+#     def put(self, request, pk):
+#         try:
+#             data = request.data
+            
     
     
 

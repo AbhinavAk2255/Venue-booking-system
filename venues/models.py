@@ -44,10 +44,10 @@ class Venue(models.Model):
             raise PermissionDenied(
                 "Only owner users can add venues."
             )
+
         
-
         if self.capacity <= 200:
-
+            
             self.capacity_category = 'intimate'
 
         elif self.capacity <= 500:

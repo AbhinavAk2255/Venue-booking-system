@@ -15,7 +15,6 @@ class CreateBookingView(APIView):
         IsAuthenticated,
         Iscustomer
     ]
-
     def post(self, request):
 
         try:
@@ -71,13 +70,80 @@ class BookingOwnerView(ListAPIView):
         ).order_by('-created_at')
     
 
-# class BookingUpdateView(APIView):
-#     permission_classes = []
+class BookingUpdateView(APIView):
 
-#     def put(self, request, pk):
-#         try:
-#             data = request.data
+    permission_classes = [
+        IsAuthenticated,
+        Iscustomer
+    ]
+
+    def put(self, request, pk):
+
+        try:
+            booking = Booking.objects.get(
+                id = pk,
+                customer = request.user
+            )
+
+            if booking.status != 'pending':
+                return Response({
+                    'message': 'Approved or rejected bookings cannot be edited.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = BookingSerializer(
+                booking,
+                data = request.data,
+                partial=True
+            )
+
+            if serializer.is_valid():
+                serializer.save()
+
+                return Response({
+                    'data' : serializer.data,
+                    'message': 'Booking updated successfully.'
+                }, status=status.HTTP_200_OK)
             
-    
-    
+        except Booking.DoesNotExist:
+            return Response({
+                'message': 'Booking not found.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({
+
+                'error': str(e),
+                'message': 'Something went wrong.'
+
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+
+
+class UpdateBookingStatusView(APIView):
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def patch(self, request, pk):
+        try:
+            booking = Booking.objects.get(
+                pk=pk,
+                venue__owner=request.user
+            )
+            new_status = request.data.get('status')
+            if new_status not in ['approved', 'rejected', 'pending']:
+                return Response(
+                    {'error': 'Invalid status'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            booking.status = new_status
+            booking.save(update_fields=['status'])
+            return Response({
+                'id': booking.id,
+                'status': booking.status,
+                'message': f'Booking {new_status} successfully'
+            })
+        except Booking.DoesNotExist:
+            return Response(
+                {'error': 'Booking not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 

@@ -9,16 +9,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import logout
 
-
-# Create your views here.
-
+# Registration
 class RegisterView(generics.CreateAPIView):
-
     queryset = CustomUser.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
 
+#Login
 class LoginView(APIView):
 
     permission_classes = []
@@ -43,11 +41,12 @@ class LoginView(APIView):
                 'access_token': str(refresh.access_token),
                 'refresh_token': str(refresh),
                 'user': {
-
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    'role': user.role
+                    'role': user.role,
+                    'is_superuser': user.is_superuser,
+                    'is_staff': user.is_staff
                 }
             })
 
@@ -57,7 +56,8 @@ class LoginView(APIView):
             'message': 'Invalid Username or Password'
 
         }, status=status.HTTP_401_UNAUTHORIZED)
-    
+
+#Logout
 class LogoutAPIView(APIView):
 
     def post(self, request):

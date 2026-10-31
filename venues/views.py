@@ -42,10 +42,7 @@ class ListVenueView(ListAPIView):
 
 class VenueDashboardView(ListAPIView):
     serializer_class = VenueSerializer
-    permission_classes = [
-        IsOwner,
-        IsAuthenticated
-    ]
+    permission_classes = [IsAuthenticated, IsOwner]
     
     def get_queryset(self):
         return Venue.objects.filter(
@@ -88,7 +85,8 @@ class VenueUpdateView(APIView):
                 'error': str(e),
                 'message':'someting went wrong',
                 }, status= status.HTTP_400_BAD_REQUEST)
-        
+
+
 class VenueDeleteView(APIView):
     permission_classes = [
         IsAuthenticated,

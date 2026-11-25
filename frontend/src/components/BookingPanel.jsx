@@ -145,7 +145,8 @@ export default function BookingPanel({ venue, onBooked }) {
           Nothing is charged now — status starts as <span className="text-sand">Pending</span> and the owner approves it.
         </p>
       </div>
-
+      
+      {console.log("CheckoutModal render:", checkoutOpen)}
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)}
         venue={venue} date={date} sessionId={sessionId} guests={guests} extras={extras} onBooked={onBooked} />
     </div>

@@ -5,6 +5,7 @@ import { ArrowRight, CalendarDays, Clock, Loader2, MapPin, Users, X } from "luci
 import { createBooking } from "../lib/api";
 import { SESSIONS, money, prettyDate } from "../lib/data";
 import { useApp, useLockBody } from "../lib/store";
+import { createPortal } from "react-dom";
 
 export default function CheckoutModal({ open, onClose, venue, date, sessionId, guests, extras, onBooked }) {
   const { addBooking, toast } = useApp();
@@ -18,34 +19,83 @@ export default function CheckoutModal({ open, onClose, venue, date, sessionId, g
   const session  = SESSIONS.find((s) => s.id === sessionId) ?? SESSIONS[1];
   const hireTotal = session.hours * venue.pricePerHour;
 
+  // const confirm = async () => {
+
+  //   console.log("BOOKING CONFIRM CLICKED");
+
+  //   if (!date) return;
+  //   setPhase("processing");
+  //   try {
+  //     const b = await createBooking({ venue, date, sessionId, guests });
+  //     addBooking(b);
+  //     setBooking(b);
+  //     setPhase("done");
+  //     toast(`Request sent — ${prettyDate(b.date)} at ${b.venueName}`);
+  //     onBooked?.();
+  //   } catch (e) {
+  //     setPhase("review");
+  //     toast(e instanceof Error ? e.message : "Booking failed — try again", "error");
+  //   }
+  // };
+
   const confirm = async () => {
-    if (!date) return;
+    console.log("BOOKING BUTTON CLICKED");
+    console.log("Booking details:", {
+      venueId: venue.id,
+      date,
+      sessionId,
+      guests,
+    });
+
+    if (!date) {
+      console.log("Booking stopped: date is missing");
+      return;
+    }
+
     setPhase("processing");
+
     try {
+      console.log("Calling createBooking API...");
+
       const b = await createBooking({ venue, date, sessionId, guests });
+
+      console.log("Booking API successful:", b);
+
       addBooking(b);
       setBooking(b);
       setPhase("done");
       toast(`Request sent — ${prettyDate(b.date)} at ${b.venueName}`);
       onBooked?.();
     } catch (e) {
+      console.error("BOOKING FAILED:", e);
+
       setPhase("review");
       toast(e instanceof Error ? e.message : "Booking failed — try again", "error");
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && date && (
-        <motion.div className="fixed inset-0 z-[145] grid place-items-center p-4"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <div className="absolute inset-0 bg-ink/85 backdrop-blur-md" onClick={phase === "processing" ? undefined : onClose} />
+        // <motion.div className="fixed inset-0 z-[145] grid place-items-center p-4"
+        //   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          className="fixed inset-0 z-[145] isolate grid place-items-center p-4 pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          {/* <div className="absolute inset-0 bg-ink/85 backdrop-blur-md" onClick={phase === "processing" ? undefined : onClose} /> */}
+          <div
+            className="absolute inset-0 z-0 pointer-events-auto bg-ink/85 backdrop-blur-md"
+            onClick={phase === "processing" ? undefined : onClose}
+          />
           <motion.div
             initial={{ opacity: 0, y: 44, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.97 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-cream/10 bg-coal shadow-[0_60px_120px_-30px_rgba(0,0,0,0.9)]"
+            className="relative z-10 pointer-events-auto w-full max-w-lg overflow-hidden rounded-3xl border border-cream/10 bg-coal shadow-[0_60px_120px_-30px_rgba(0,0,0,0.9)]"
           >
             <AnimatePresence mode="wait">
               {phase !== "done" ? (
@@ -93,12 +143,38 @@ export default function CheckoutModal({ open, onClose, venue, date, sessionId, g
                       </div>
                     </div>
 
-                    <button data-hover onClick={confirm} disabled={phase === "processing"}
+                    {/* <button 
+                      data-hover 
+                      onClick={() => {
+                        console.log("SEND BOOKING BUTTON CLICKED");
+                        confirm();
+                      }}
+                      disabled={phase === "processing"}
                       className="shimmer-btn group mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-gold py-4 text-[13px] font-medium tracking-[0.14em] uppercase text-ink hover:bg-champagne disabled:opacity-70">
                       {phase === "processing"
                         ? <><Loader2 className="size-4 animate-spin" /> Sending request…</>
                         : <>Send booking request <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" /></>
                       }
+                    </button> */}
+
+                    <button
+                      type="button"
+                      data-hover
+                      onClick={confirm}
+                      disabled={phase === "processing"}
+                      className="shimmer-btn group flex w-full items-center justify-center gap-2 rounded-full bg-gold py-4 text-[13px] font-medium tracking-[0.14em] uppercase text-ink hover:bg-champagne disabled:opacity-60"
+                    >
+                      {phase === "processing" ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          Sending request…
+                        </>
+                      ) : (
+                        <>
+                          Send booking request
+                          <ArrowRight className="size-4" />
+                        </>
+                      )}
                     </button>
                     <p className="mt-4 text-center text-[11px] leading-relaxed text-faint">
                       Status starts as Pending. The venue owner reviews every request.
@@ -140,6 +216,7 @@ export default function CheckoutModal({ open, onClose, venue, date, sessionId, g
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

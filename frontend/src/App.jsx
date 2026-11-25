@@ -9,6 +9,7 @@ import Preloader      from "./components/Preloader";
 import Navbar         from "./components/Navbar";
 import Footer         from "./components/Footer";
 import AuthModal      from "./components/AuthModal";
+import VenueAssistant from "./components/VenueAssistant";
 import Home           from "./pages/Home";
 import Venues         from "./pages/Venues";
 import VenueDetail    from "./pages/VenueDetail";
@@ -150,6 +151,7 @@ function PublicLayout({ children }) {
       <Footer />
       <AuthModal />
       <Toasts />
+      <VenueAssistant />
       <div
         aria-hidden
         className="grain-overlay pointer-events-none fixed inset-0 z-[95] opacity-[0.05] mix-blend-overlay"

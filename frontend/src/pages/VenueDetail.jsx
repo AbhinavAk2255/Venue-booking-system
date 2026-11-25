@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import { Accessibility, ArrowLeft, ArrowRight, ArrowUpDown, BadgeCheck, BedDouble, Building2, Car, ChefHat, CircleAlert, Clock, DoorOpen, Flower2, Gem, Info, MapPin, Moon, ShieldCheck, Shirt, Snowflake, Sparkles, Speaker, Star, Sun, Users, UtensilsCrossed, Waves, Wifi, Wine, X } from "lucide-react";
 import { CAPACITY_META, isDateBooked, money, prettyDate } from "../lib/data";
-import { USE_MOCK, fetchVenueReviews, createVenueReview } from "../lib/api";
+import { USE_MOCK, fetchVenueReviews, createVenueReview, generateVenueDecorPreview } from "../lib/api";
 import { useApp, useLockBody } from "../lib/store";
 import { FadeUp, RevealWords } from "../components/ui/Reveal";
 import SectionHeading from "../components/ui/SectionHeading";
@@ -19,6 +19,29 @@ const AMENITY_ICONS = {
   "Floral studio": Flower2, "Parking on site": Car, "Accommodation": BedDouble,
   "Swimming pool": Waves, "Private lift lobby": ArrowUpDown, "Air conditioning": Snowflake,
 };
+
+const DECOR_PROMPT_EXAMPLES = [
+  {
+    label: "Kerala Wedding",
+    prompt:
+      "Decorate this venue for a traditional Kerala wedding with natural jasmine flower garlands, elegant brass lamps, subtle golden decorations and warm lighting. Keep the original room structure and architecture as much as possible.",
+  },
+  {
+    label: "Modern Wedding",
+    prompt:
+      "Create a modern wedding decoration with beautiful white flowers, elegant fabrics, soft lighting and minimal golden accents. Keep the original venue layout and architecture.",
+  },
+  {
+    label: "Corporate Event",
+    prompt:
+      "Transform this venue into a professional corporate event space with a modern stage, elegant lighting, organized seating and clean decorations. Preserve the original room structure.",
+  },
+  {
+    label: "Birthday Celebration",
+    prompt:
+      "Decorate this venue for a beautiful birthday celebration with stylish balloons, colorful floral arrangements, an elegant celebration backdrop and warm lighting. Keep the original venue structure.",
+  },
+];
 
 export default function VenueDetail() {
   const { slug } = useParams();
@@ -45,6 +68,10 @@ export default function VenueDetail() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  const [decorPrompt, setDecorPrompt] = useState("");
+  const [decorPreview, setDecorPreview] = useState(null);
+  const [generatingDecor, setGeneratingDecor] = useState(false);
 
   const nextFreeDate = useMemo(() => {
     if (!venue || !USE_MOCK) return null;
@@ -148,6 +175,52 @@ export default function VenueDetail() {
     }
   };
 
+  const handleGenerateDecor = async () => {
+    if (!user) {
+      openAuth("signin");
+      return;
+    }
+
+    if (USE_MOCK) {
+      toast("Please enable live API mode to use AI decoration.", "error");
+      return;
+    }
+
+    if (!decorPrompt.trim()) {
+      toast("Please describe your decoration idea.", "error");
+      return;
+    }
+
+    if (decorPrompt.trim().length > 2000) {
+      toast("Your prompt cannot exceed 2000 characters.", "error");
+      return;
+    }
+
+    try {
+      setGeneratingDecor(true);
+      setDecorPreview(null);
+
+      const response = await generateVenueDecorPreview(
+        venue.id,
+        decorPrompt.trim()
+      );
+
+      if (!response?.preview_url) {
+        throw new Error("Preview image was not received.");
+      }
+
+      setDecorPreview(response.preview_url);
+      toast("Your decoration preview is ready!");
+    } catch (error) {
+      toast(
+        error.message || "Could not generate decoration preview.",
+        "error"
+      );
+    } finally {
+      setGeneratingDecor(false);
+    }
+  };
+
   if (venuesLoading) return (
     <div className="pt-32 pb-20">
       <div className="mx-auto max-w-[1440px] px-5 sm:px-8">
@@ -245,6 +318,141 @@ export default function VenueDetail() {
               </FadeUp>
             ))}
           </div>
+
+
+            {/* AI VENUE DECOR SIMULATOR */}
+            <section className="px-4 py-16 md:px-8 lg:px-12">
+              <div className="mx-auto max-w-6xl">
+
+                <div className="mb-8">
+                  <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[#c9a15c]">
+                    AI Experience
+                  </span>
+
+                  <h2 className="mt-3 font-serif text-3xl text-[#f4ead8] md:text-4xl">
+                    Visualize Your Event
+                  </h2>
+
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-[#b5aa98]">
+                    Imagine your celebration in this venue. Describe your decoration
+                    ideas and let AI create a visual preview.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#c9a15c]/20 bg-[#15130f] p-5 md:p-8">
+
+                  {/* Example prompts */}
+                  <div className="mb-5">
+                    <h3 className="mb-3 text-sm font-medium text-[#f4ead8]">
+                      Need some inspiration?
+                    </h3>
+
+                    <div className="flex flex-wrap gap-2">
+                      {DECOR_PROMPT_EXAMPLES.map((example) => (
+                        <button
+                          key={example.label}
+                          type="button"
+                          onClick={() => setDecorPrompt(example.prompt)}
+                          className="rounded-full border border-[#c9a15c]/30 px-4 py-2 text-xs text-[#d8c6a5] transition hover:border-[#c9a15c] hover:bg-[#c9a15c]/10"
+                        >
+                          {example.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Customer prompt */}
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-[#f4ead8]">
+                      Describe your decoration idea
+                    </label>
+
+                    <textarea
+                      value={decorPrompt}
+                      onChange={(e) => setDecorPrompt(e.target.value)}
+                      placeholder="Example: Decorate this venue with beautiful white jasmine flowers, traditional Kerala lamps, elegant golden decorations and warm lighting..."
+                      rows={5}
+                      maxLength={2000}
+                      className="w-full resize-y rounded-xl border border-[#c9a15c]/20 bg-[#0d0c09] p-4 text-sm leading-7 text-[#f4ead8] outline-none placeholder:text-[#777064] focus:border-[#c9a15c]"
+                    />
+
+                    <div className="mt-2 flex justify-end">
+                      <span className="text-xs text-[#918879]">
+                        {decorPrompt.length}/2000 characters
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Generate button */}
+                  <button
+                    type="button"
+                    onClick={handleGenerateDecor}
+                    disabled={generatingDecor || !decorPrompt.trim()}
+                    className="mt-5 flex w-full items-center justify-center gap-3 rounded-xl bg-[#c9a15c] px-6 py-4 text-sm font-semibold text-[#17120b] transition hover:bg-[#d8b778] disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
+                  >
+                    {generatingDecor ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#17120b] border-t-transparent" />
+                        Creating Your Preview...
+                      </>
+                    ) : (
+                      "Generate My Venue Preview"
+                    )}
+                  </button>
+
+                  <p className="mt-3 text-xs leading-6 text-[#918879]">
+                    AI-generated previews are conceptual visualizations. Actual
+                    decorations and venue appearance may vary.
+                  </p>
+
+                  {/* Generated preview */}
+                  {decorPreview && (
+                    <div className="mt-10 border-t border-[#c9a15c]/20 pt-8">
+                      <h3 className="mb-6 font-serif text-2xl text-[#f4ead8]">
+                        Your Decorated Venue
+                      </h3>
+
+                      <div className="grid gap-6 md:grid-cols-2">
+
+                        <div>
+                          <p className="mb-3 text-sm text-[#b5aa98]">
+                            Original Venue
+                          </p>
+                          <img
+                            src={venue.image}
+                            alt="Original venue"
+                            className="h-64 w-full rounded-xl object-cover"
+                          />
+                        </div>
+
+                        <div>
+                          <p className="mb-3 text-sm text-[#c9a15c]">
+                            AI Decoration Preview
+                          </p>
+                          <img
+                            src={decorPreview}
+                            alt="AI decorated venue preview"
+                            className="h-64 w-full rounded-xl object-cover"
+                          />
+                        </div>
+
+                      </div>
+
+                      <a
+                        href={decorPreview}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-5 inline-block text-sm text-[#c9a15c] underline underline-offset-4"
+                      >
+                        Open Generated Image
+                      </a>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            </section>
+
 
           {/* Amenities */}
           <FadeUp className="mt-14">
@@ -511,34 +719,73 @@ export default function VenueDetail() {
             <p className="text-[10px] tracking-[0.22em] uppercase text-faint">Hire rate</p>
             <p className="font-display text-xl text-cream">{money(venue.pricePerHour)}<span className="text-xs text-sand"> /hr</span></p>
           </div>
-          <button data-hover onClick={() => setSheetOpen(true)}
-            className="shimmer-btn flex-1 rounded-full bg-gold py-3.5 text-[12px] font-medium tracking-[0.16em] uppercase text-ink hover:bg-champagne">
+          {!sheetOpen && (
+          <button
+            type="button"
+            data-hover
+            onClick={() => setSheetOpen(true)}
+            className="shimmer-btn flex-1 cursor-pointer rounded-full bg-gold py-3.5 text-[12px] font-medium tracking-[0.16em] uppercase text-ink hover:bg-champagne"
+          >
             Request date
           </button>
+          )}
         </div>
       </div>
-
+      
       {/* Mobile sheet */}
       <AnimatePresence>
         {sheetOpen && (
           <>
-            <motion.div className="fixed inset-0 z-[130] bg-ink/70 backdrop-blur-sm lg:hidden"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSheetOpen(false)} />
-            <motion.div className="fixed inset-x-0 bottom-0 z-[135] max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-coal lg:hidden no-scrollbar"
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 34 }}>
-              <div className="sticky top-0 z-10 flex items-center justify-between bg-coal/95 px-5 py-4 backdrop-blur-md">
-                <span className="mx-auto h-1 w-10 rounded-full bg-cream/20 absolute left-1/2 -translate-x-1/2 top-2.5" />
-                <p className="text-[11px] tracking-[0.26em] uppercase text-sand">Reserve {venue.name}</p>
-                <button data-hover onClick={() => setSheetOpen(false)} className="grid size-9 place-items-center rounded-full border border-cream/10 text-sand" aria-label="Close">
+            <motion.div
+              className="fixed inset-0 z-[130] bg-ink/70 backdrop-blur-sm lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSheetOpen(false)}
+            />
+
+            <motion.div
+              className="fixed inset-x-0 bottom-0 z-[135] flex h-[88dvh] max-h-[88dvh] flex-col overflow-hidden rounded-t-[28px] bg-coal lg:hidden"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 34 }}
+            >
+              {/* Sticky header */}
+              <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-cream/10 bg-coal px-5 py-4">
+                <span className="absolute left-1/2 top-2.5 h-1 w-10 -translate-x-1/2 rounded-full bg-cream/20" />
+
+                <p className="text-[11px] tracking-[0.26em] uppercase text-sand">
+                  Reserve {venue.name}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setSheetOpen(false)}
+                  className="grid size-9 cursor-pointer place-items-center rounded-full border border-cream/10 text-sand"
+                  aria-label="Close"
+                >
                   <X className="size-4" />
                 </button>
               </div>
-              <div className="p-4 pb-10"><BookingPanel venue={venue} onBooked={() => setSheetOpen(false)} /></div>
+
+              {/* Scrollable booking content */}
+              <div
+                data-lenis-prevent
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-12"
+                style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
+                
+              >
+                <BookingPanel
+                  venue={venue}
+                  onBooked={() => setSheetOpen(false)}
+                />
+              </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
     </div>
   );
 }

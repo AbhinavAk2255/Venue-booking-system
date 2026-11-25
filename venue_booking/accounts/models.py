@@ -3,6 +3,9 @@ from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from django.db.models import Q
 
+from django.utils import timezone
+from datetime import timedelta
+
 # Create your models here.
 
 class CustomUser(AbstractUser):
@@ -11,6 +14,8 @@ class CustomUser(AbstractUser):
         ('customer', 'Customer'),
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    email = models.EmailField(unique=True,blank=True,null=True)
+    phone_number = models.CharField(max_length=20,unique=True,null=True,blank=True)
 
 
 class HostApplication(models.Model):
@@ -72,6 +77,46 @@ class HostApplication(models.Model):
     def __str__(self):
         return f"{self.business_name} - {self.user.username} ({self.status})"
 
+
+class OTPVerification(models.Model):
+
+    PURPOSE_CHOICES = [
+        ("login", "Login"),
+        ("password_reset", "Password Reset"),
+        ("email_change", "Email Change"),
+        ("phone_change", "Phone Change"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="otp_verifications",
+        null=True,
+        blank=True,
+    )
+
+    destination = models.CharField(max_length=255)
+
+    otp_hash = models.CharField(max_length=128)
+
+    purpose = models.CharField(
+        max_length=20,
+        choices=PURPOSE_CHOICES,
+    )
+
+    expires_at = models.DateTimeField()
+
+    is_used = models.BooleanField(default=False)
+
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    def __str__(self):
+        return f"{self.destination} - {self.purpose}"
 
 
 

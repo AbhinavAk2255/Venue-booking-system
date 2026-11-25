@@ -144,7 +144,9 @@ input[type="range"].slider-gold::-moz-range-thumb {
 .shimmer-btn {
   position: relative;
   overflow: hidden;
+
 }
+
 .shimmer-btn::after {
   content: "";
   position: absolute;

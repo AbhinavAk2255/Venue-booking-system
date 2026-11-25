@@ -16,7 +16,7 @@ const SORTS = [
   { id: "capacity",   label: "Largest first"       },
 ];
 
-const MAX_RATE = 1200;
+const MAX_RATE = 50000;
 
 export default function Venues() {
   const { venues, venuesLoading: loading, venuesError } = useApp();

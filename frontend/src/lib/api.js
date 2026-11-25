@@ -1,5 +1,4 @@
 import { BOOKINGS_CHANGED_EVENT, DEMO_VENUES, MOOD_SHOTS, SESSIONS, TYPE_META, formatTime, slugify } from "./data";
-
 export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "true") !== "false";
 export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 export const API_ORIGIN = API_BASE_URL.replace(/\/api$/, "");
@@ -320,6 +319,54 @@ export async function fetchVenues() {
 
 /* ─── Auth ───────────────────────────────────────────────────────────── */
 
+
+/*  Forgot Password  */
+
+export async function requestPasswordResetOTP(email) {
+  if (!email?.trim()) {
+    throw new Error("Email address is required.");
+  }
+
+  if (USE_MOCK) {
+    await latency();
+    return {
+      message: "Demo OTP request successful. Check your backend in live mode.",
+    };
+  }
+
+  return request("/accounts/forgot-password/", {
+    method: "POST",
+    body: JSON.stringify({
+      email: email.trim().toLowerCase(),
+    }),
+  });
+}
+
+
+export async function resetPasswordWithOTP(email, otp, newPassword) {
+  if (!email?.trim() || !otp?.trim() || !newPassword) {
+    throw new Error("Please complete all fields.");
+  }
+
+  if (USE_MOCK) {
+    await latency();
+    return {
+      status: true,
+      message: "Password reset successfully (demo mode).",
+    };
+  }
+
+  return request("/accounts/reset-password/", {
+    method: "POST",
+    body: JSON.stringify({
+      email: email.trim().toLowerCase(),
+      otp: otp.trim(),
+      new_password: newPassword,
+    }),
+  });
+}
+
+
 export async function signIn(username, password) {
   if (!username.trim()) throw new Error("Username is required");
   if (!password)        throw new Error("Password is required");
@@ -595,5 +642,23 @@ export async function createVenueReview(reviewData) {
   return request("/booking/reviews/create/", {
     method: "POST",
     body: JSON.stringify(reviewData),
+  });
+}
+
+// ─── AI Venue Decor Simulator ─────────────────────────────
+
+export async function generateVenueDecorPreview(venueId, prompt) {
+  if (USE_MOCK) {
+    throw new Error(
+      "AI decoration is available in live mode only."
+    );
+  }
+
+  return request("/ai/decorate/", {
+    method: "POST",
+    body: JSON.stringify({
+      venue_id: venueId,
+      prompt: prompt,
+    }),
   });
 }

@@ -33,12 +33,12 @@ export default function Cursor() {
   if (!enabled) return null;
   return (
     <>
-      <motion.div aria-hidden className="fixed top-0 left-0 z-[200] pointer-events-none rounded-full bg-champagne mix-blend-difference"
+      <motion.div aria-hidden className="fixed top-0 left-0 z-[10000] pointer-events-none rounded-full bg-champagne mix-blend-difference"
         style={{ x, y, translateX: "-50%", translateY: "-50%" }}
         animate={{ width: pressed ? 14 : 8, height: pressed ? 14 : 8 }}
         transition={{ duration: 0.15 }}
       />
-      <motion.div aria-hidden className="fixed top-0 left-0 z-[200] pointer-events-none rounded-full border border-gold/70"
+      <motion.div aria-hidden className="fixed top-0 left-0 z-[10000] pointer-events-none rounded-full border border-gold/70"
         style={{ x: ringX, y: ringY, translateX: "-50%", translateY: "-50%" }}
         animate={{ width: hovering ? 52 : 34, height: hovering ? 52 : 34, opacity: pressed ? 0.5 : 1, backgroundColor: hovering ? "rgba(201,161,92,0.08)" : "rgba(201,161,92,0)" }}
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}

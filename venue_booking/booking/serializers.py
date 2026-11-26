@@ -6,6 +6,16 @@ from .models import Booking,Review
 class BookingSerializer(serializers.ModelSerializer):
     payment_status = serializers.SerializerMethodField()
 
+    customer_name = serializers.CharField(
+        source="customer.username",
+        read_only=True
+    )
+
+    venue_name = serializers.CharField(
+        source="venue.venue_name",
+        read_only=True
+    )
+
     class Meta:
         model = Booking
         fields = "__all__"
@@ -23,6 +33,7 @@ class BookingSerializer(serializers.ModelSerializer):
             return "paid"
 
         return "unpaid"
+    
 
 
     def validate(self, attrs):

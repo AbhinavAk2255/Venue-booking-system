@@ -3,6 +3,13 @@ export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "true") !== "false";
 export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 export const API_ORIGIN = API_BASE_URL.replace(/\/api$/, "");
 
+// Central Axios instance for backend API requests
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+import axios from "axios";
+
 const TOKEN_KEY = "venuva.token";
 const REFRESH_KEY = "venuva.refresh";
 const USER_KEY = "venuva.user";
@@ -87,6 +94,9 @@ const latency = (min = 320, max = 780) =>
 // Prevent multiple refresh requests at the same time.
 let refreshPromise = null;
 
+
+// axios changed area
+
 async function refreshAccessToken() {
   if (refreshPromise) {
     return refreshPromise;
@@ -99,20 +109,19 @@ async function refreshAccessToken() {
       throw new Error("Refresh token not found");
     }
 
-    const res = await fetch(
+    // Use Axios directly for token refresh.
+    // This avoids recursively calling the normal request handler.
+    const { data } = await axios.post(
       `${API_BASE_URL}/accounts/token/refresh/`,
+      { refresh },
       {
-        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ refresh }),
       }
     );
 
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !data.access || !data.refresh) {
+    if (!data.access || !data.refresh) {
       throw new Error("Session expired. Please log in again.");
     }
 
@@ -130,6 +139,176 @@ async function refreshAccessToken() {
   }
 }
 
+// Send API requests using Axios.
+async function sendRequest(path, options = {}, token) {
+  const {
+    body,
+    method = "GET",
+    headers: customHeaders = {},
+    ...otherOptions
+  } = options;
+
+  const headers = { ...customHeaders };
+
+  // Add authentication token
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Preserve JSON support from the old Fetch implementation
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
+
+  const hasContentType = Object.keys(headers).some(
+    (key) => key.toLowerCase() === "content-type"
+  );
+
+  if (body != null && !isFormData && !hasContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  return apiClient.request({
+    ...otherOptions,
+    url: path,
+    method,
+    data: body,
+    headers,
+  });
+}
+
+// Convert Axios errors into readable application errors.
+function handleRequestError(error) {
+  const status = error.response?.status;
+  const body = error.response?.data;
+
+  if (body !== undefined) {
+    return new Error(getErrorMessage(body, status));
+  }
+
+  return new Error(
+    error.code === "ECONNABORTED"
+      ? "Request timed out. Please try again."
+      : error.message || "Unable to connect to the server."
+  );
+}
+
+async function request(path, options = {}) {
+  let token = getToken();
+
+  // Mock mode: do not try to refresh mock tokens.
+  if (token && token.startsWith("mock.")) {
+    try {
+      const response = await sendRequest(path, options, token);
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401 && getRefreshToken()) {
+        clearSession();
+        window.dispatchEvent(
+          new Event("venuva:session-expired")
+        );
+
+        throw new Error(
+          "Your session has expired. Please log in again."
+        );
+      }
+
+      throw handleRequestError(error);
+    }
+  }
+
+  // If the access token has already expired,
+  // refresh it before making the request.
+  if (token && !isTokenValid() && getRefreshToken()) {
+    try {
+      token = await refreshAccessToken();
+    } catch (error) {
+      clearSession();
+
+      window.dispatchEvent(
+        new Event("venuva:session-expired")
+      );
+
+      throw error;
+    }
+  }
+
+  try {
+    let response = await sendRequest(path, options, token);
+
+    return response.data;
+  } catch (error) {
+    // If the access token expires during the request,
+    // refresh it and retry once.
+    if (error.response?.status === 401 && getRefreshToken()) {
+      try {
+        token = await refreshAccessToken();
+
+        const response = await sendRequest(
+          path,
+          options,
+          token
+        );
+
+        return response.data;
+      } catch (refreshError) {
+        clearSession();
+
+        window.dispatchEvent(
+          new Event("venuva:session-expired")
+        );
+
+        throw handleRequestError(refreshError);
+      }
+    }
+
+    throw handleRequestError(error);
+  }
+}
+
+
+// async function refreshAccessToken() {
+//   if (refreshPromise) {
+//     return refreshPromise;
+//   }
+
+//   refreshPromise = (async () => {
+//     const refresh = getRefreshToken();
+
+//     if (!refresh) {
+//       throw new Error("Refresh token not found");
+//     }
+
+//     const res = await fetch(
+//       `${API_BASE_URL}/accounts/token/refresh/`,
+//       {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({ refresh }),
+//       }
+//     );
+
+//     const data = await res.json().catch(() => ({}));
+
+//     if (!res.ok || !data.access || !data.refresh) {
+//       throw new Error("Session expired. Please log in again.");
+//     }
+
+//     // Store both tokens because refresh-token rotation is enabled.
+//     localStorage.setItem(TOKEN_KEY, data.access);
+//     localStorage.setItem(REFRESH_KEY, data.refresh);
+
+//     return data.access;
+//   })();
+
+//   try {
+//     return await refreshPromise;
+//   } finally {
+//     refreshPromise = null;
+//   }
+// }
+
 function getErrorMessage(body, status) {
   return (
     (body && typeof body.message === "string" && body.message) ||
@@ -145,92 +324,92 @@ function getErrorMessage(body, status) {
   );
 }
 
-async function sendRequest(path, options, token) {
-  const headers = {
-    ...(options.body && !(options.body instanceof FormData)
-      ? { "Content-Type": "application/json" }
-      : {}),
-    ...(options.headers ?? {}),
-  };
+// async function sendRequest(path, options, token) {
+//   const headers = {
+//     ...(options.body && !(options.body instanceof FormData)
+//       ? { "Content-Type": "application/json" }
+//       : {}),
+//     ...(options.headers ?? {}),
+//   };
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  } else {
-    delete headers.Authorization;
-  }
+//   if (token) {
+//     headers.Authorization = `Bearer ${token}`;
+//   } else {
+//     delete headers.Authorization;
+//   }
 
-  return fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
-}
+//   return fetch(`${API_BASE_URL}${path}`, {
+//     ...options,
+//     headers,
+//   });
+// }
 
-async function readResponse(res) {
-  const bodyText = await res.text();
+// async function readResponse(res) {
+//   const bodyText = await res.text();
 
-  try {
-    return bodyText ? JSON.parse(bodyText) : null;
-  } catch {
-    return bodyText;
-  }
-}
+//   try {
+//     return bodyText ? JSON.parse(bodyText) : null;
+//   } catch {
+//     return bodyText;
+//   }
+// }
 
-async function request(path, options = {}) {
-  let token = getToken();
+// async function request(path, options = {}) {
+//   let token = getToken();
 
-  // Mock mode: do not try to refresh mock tokens.
-  if (token && token.startsWith("mock.")) {
-    const res = await sendRequest(path, options, token);
-    const body = await readResponse(res);
+//   // Mock mode: do not try to refresh mock tokens.
+//   if (token && token.startsWith("mock.")) {
+//     const res = await sendRequest(path, options, token);
+//     const body = await readResponse(res);
 
-    if (res.status === 401 && getRefreshToken()) {
-      clearSession();
-      window.dispatchEvent(new Event("venuva:session-expired"));
-      throw new Error("Your session has expired. Please log in again.");
-    }
+//     if (res.status === 401 && getRefreshToken()) {
+//       clearSession();
+//       window.dispatchEvent(new Event("venuva:session-expired"));
+//       throw new Error("Your session has expired. Please log in again.");
+//     }
 
-    if (!res.ok) {
-      throw new Error(getErrorMessage(body, res.status));
-    }
+//     if (!res.ok) {
+//       throw new Error(getErrorMessage(body, res.status));
+//     }
 
-    return body;
-  }
+//     return body;
+//   }
 
-  // If the access token has already expired, refresh before the request.
-  if (token && !isTokenValid() && getRefreshToken()) {
-    try {
-      token = await refreshAccessToken();
-    } catch (error) {
-      clearSession();
-      window.dispatchEvent(new Event("venuva:session-expired"));
-      throw error;
-    }
-  }
+//   // If the access token has already expired, refresh before the request.
+//   if (token && !isTokenValid() && getRefreshToken()) {
+//     try {
+//       token = await refreshAccessToken();
+//     } catch (error) {
+//       clearSession();
+//       window.dispatchEvent(new Event("venuva:session-expired"));
+//       throw error;
+//     }
+//   }
 
-  let res = await sendRequest(path, options, token);
+//   let res = await sendRequest(path, options, token);
 
-  // If access token expires while making the request, refresh and retry once.
-  if (res.status === 401 && getRefreshToken()) {
-    try {
-      token = await refreshAccessToken();
-      res = await sendRequest(path, options, token);
-    } catch (error) {
-      clearSession();
-      window.dispatchEvent(new Event("venuva:session-expired"));
-      throw error;
-    }
-  }
+//   // If access token expires while making the request, refresh and retry once.
+//   if (res.status === 401 && getRefreshToken()) {
+//     try {
+//       token = await refreshAccessToken();
+//       res = await sendRequest(path, options, token);
+//     } catch (error) {
+//       clearSession();
+//       window.dispatchEvent(new Event("venuva:session-expired"));
+//       throw error;
+//     }
+//   }
 
-  const body = await readResponse(res);
+//   const body = await readResponse(res);
 
-  if (!res.ok) {
-    // Do not automatically clear the session for every 401.
-    // A 401 may also indicate an endpoint-specific authentication problem.
-    throw new Error(getErrorMessage(body, res.status));
-  }
+//   if (!res.ok) {
+//     // Do not automatically clear the session for every 401.
+//     // A 401 may also indicate an endpoint-specific authentication problem.
+//     throw new Error(getErrorMessage(body, res.status));
+//   }
 
-  return body;
-}
+//   return body;
+// }
 
 /* ─── Venues ─────────────────────────────────────────────────────────── */
 
@@ -261,6 +440,12 @@ function mapApiVenue(v) {
     host: null,
   };
 }
+
+export const sendAssistantMessage = (message) =>
+  request("/ai/assistant/", {
+    method: "POST",
+    body: { message },
+  });
 
 function splitParagraphs(text, meta) {
   const chunks = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);

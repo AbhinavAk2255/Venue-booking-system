@@ -1,54 +1,104 @@
-import { API_BASE_URL, getToken, clearSession } from "./api";
+
+import { apiClient, getToken, clearSession } from "./api";
 
 async function adminRequest(path, options = {}) {
-  const headers = {
-    ...(options.body && !(options.body instanceof FormData)
-      ? { "Content-Type": "application/json" }
-      : {}),
-    ...(options.headers ?? {}),
-  };
   const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-  const text = await res.text();
-  let body = null;
-  try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+  const {
+    method = "GET",
+    body,
+    headers = {},
+    ...otherOptions
+  } = options;
 
-  if (!res.ok) {
-    if (res.status === 401) {
+  try {
+    const response = await apiClient.request({
+      url: path,
+      method,
+      data: body ? JSON.parse(body) : undefined,
+      headers: {
+        ...headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...otherOptions,
+    });
+
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) {
       clearSession();
     }
-    const msg = body?.message || body?.detail || body?.error || `Request failed (${res.status})`;
-    throw new Error(String(msg));
+
+    const responseData = error.response?.data;
+
+    const message =
+      responseData?.message ||
+      responseData?.detail ||
+      responseData?.error ||
+      error.message ||
+      "Unable to connect to the server.";
+
+    throw new Error(String(message));
   }
-  return body;
 }
 
-// ─── Dashboard ──────────────────────────────────────────────────────
+// Dashboard
 export const fetchStats = () => adminRequest("/admin/stats/");
 
-// ─── Users ──────────────────────────────────────────────────────────
-export const fetchUsers = (params = "") => adminRequest(`/admin/users/${params ? `?${params}` : ""}`);
-export const createUser = (data) => adminRequest("/admin/users/create/", { method: "POST", body: JSON.stringify(data) });
-export const updateUser = (id, data) => adminRequest(`/admin/users/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
-export const deleteUser = (id) => adminRequest(`/admin/users/${id}/`, { method: "DELETE" });
-export const toggleUser = (id) => adminRequest(`/admin/users/${id}/toggle/`, { method: "PATCH" });
+// Users
+export const fetchUsers = (params = "") =>
+  adminRequest(`/admin/users/${params ? `?${params}` : ""}`);
 
-// ─── Venues ─────────────────────────────────────────────────────────
-export const fetchAdminVenues = (params = "") => adminRequest(`/admin/venues/${params ? `?${params}` : ""}`);
-export const updateVenue = (id, data) => adminRequest(`/admin/venues/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
-export const deleteVenue = (id) => adminRequest(`/admin/venues/${id}/`, { method: "DELETE" });
+export const createUser = (data) =>
+  adminRequest("/admin/users/create/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
-// ─── Bookings ───────────────────────────────────────────────────────
-export const fetchAdminBookings = (params = "") => adminRequest(`/admin/bookings/${params ? `?${params}` : ""}`);
-export const updateBookingStatus = (id, status) => adminRequest(`/admin/bookings/${id}/status/`, { method: "PATCH", body: JSON.stringify({ status }) });
-export const deleteBooking = (id) => adminRequest(`/admin/bookings/${id}/delete/`, { method: "DELETE" });
+export const updateUser = (id, data) =>
+  adminRequest(`/admin/users/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 
+export const deleteUser = (id) =>
+  adminRequest(`/admin/users/${id}/`, { method: "DELETE" });
 
+export const toggleUser = (id) =>
+  adminRequest(`/admin/users/${id}/`, { method: "PATCH" });
 
-// ─── Host Applications ──────────────────────────────────────────────
+// export const toggleUser = (id) =>
+//   adminRequest(`/admin/users/${id}/toggle/`, {
+//     method: "PATCH",
+// });
 
+// Venues
+export const fetchAdminVenues = (params = "") =>
+  adminRequest(`/admin/venues/${params ? `?${params}` : ""}`);
+
+export const updateVenue = (id, data) =>
+  adminRequest(`/admin/venues/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const deleteVenue = (id) =>
+  adminRequest(`/admin/venues/${id}/`, { method: "DELETE" });
+
+// Bookings
+export const fetchAdminBookings = (params = "") =>
+  adminRequest(`/admin/bookings/${params ? `?${params}` : ""}`);
+
+export const updateBookingStatus = (id, status) =>
+  adminRequest(`/admin/bookings/${id}/status/`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+
+export const deleteBooking = (id) =>
+  adminRequest(`/admin/bookings/${id}/delete/`, { method: "DELETE" });
+
+// Host Applications
 export const fetchHostApplications = (status = "") => {
   const params = status
     ? `?status=${encodeURIComponent(status)}`

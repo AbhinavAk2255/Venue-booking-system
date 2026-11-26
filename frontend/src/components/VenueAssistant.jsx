@@ -1,18 +1,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowUp,
-  Bot,
-  MapPin,
-  MessageCircle,
-  Minus,
-  Sparkles,
-  Users,
-  X,
-} from "lucide-react";
+import {ArrowUp, Bot, MapPin, MessageCircle, Minus, Sparkles, Users, X} from "lucide-react";
 
-import { API_BASE_URL, getToken } from "../lib/api";
+import { API_BASE_URL, sendAssistantMessage } from "../lib/api";
 
 const SUGGESTIONS = [
   "Find a wedding venue for 300 guests",
@@ -106,75 +97,57 @@ export default function VenueAssistant() {
     }
   }, [open, messages, sending]);
 
-  const sendMessage = async (text = message) => {
-    const cleanMessage = text.trim();
+  
+const sendMessage = async (text = message) => {
+  const cleanMessage = text.trim();
 
-    if (!cleanMessage || sending) return;
+  if (!cleanMessage || sending) return;
 
-    setMessage("");
+  setMessage("");
+
+  setMessages((previous) => [
+    ...previous,
+    {
+      id: `${Date.now()}-user`,
+      role: "user",
+      text: cleanMessage,
+    },
+  ]);
+
+  setSending(true);
+
+  try {
+    const data = await sendAssistantMessage(cleanMessage);
 
     setMessages((previous) => [
       ...previous,
       {
-        id: `${Date.now()}-user`,
-        role: "user",
-        text: cleanMessage,
+        id: `${Date.now()}-assistant`,
+        role: "assistant",
+        text: data.answer || "I couldn't find an answer.",
+        venues: Array.isArray(data.venues) ? data.venues : [],
       },
     ]);
+  } catch (error) {
+    const errorMessage =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      error.message ||
+      "The assistant is temporarily unavailable. Please try again.";
 
-    setSending(true);
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: `${Date.now()}-error`,
+        role: "assistant",
+        text: errorMessage,
+      },
+    ]);
+  } finally {
+    setSending(false);
+  }
+};
 
-    try {
-      const token = getToken();
-
-      const response = await fetch(
-        `${API_BASE_URL}/ai/assistant/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token
-              ? { Authorization: `Bearer ${token}` }
-              : {}),
-          },
-          body: JSON.stringify({
-            message: cleanMessage,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || data.detail || "Something went wrong."
-        );
-      }
-
-      setMessages((previous) => [
-        ...previous,
-        {
-          id: `${Date.now()}-assistant`,
-          role: "assistant",
-          text: data.answer || "I couldn't find an answer.",
-          venues: Array.isArray(data.venues) ? data.venues : [],
-        },
-      ]);
-    } catch (error) {
-      setMessages((previous) => [
-        ...previous,
-        {
-          id: `${Date.now()}-error`,
-          role: "assistant",
-          text:
-            error.message ||
-            "The assistant is temporarily unavailable. Please try again.",
-        },
-      ]);
-    } finally {
-      setSending(false);
-    }
-  };
 
   return (
     <div className="fixed bottom-5 right-5 z-[90] font-sans">

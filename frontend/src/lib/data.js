@@ -1,4 +1,4 @@
-import imgHero from "../assets/hero.jpg";
+import imgHero from "../assets/heronew.jpg";
 
 const imgRooftop =
   "https://images.pexels.com/photos/9584741/pexels-photo-9584741.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200";
@@ -227,7 +227,7 @@ export function prettyDate(iso) {
 }
 
 export function money(n) {
-  return "$" + Math.round(n).toLocaleString("en-US");
+  return "₹" + Math.round(n).toLocaleString("en-IN");
 }
 
 export function slugify(name, id) {

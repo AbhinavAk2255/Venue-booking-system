@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, LayoutDashboard, LogOut, Menu, Settings, Sparkles, X } from "lucide-react";
+import { Bell, LayoutDashboard, LogOut, Menu, Settings, Sparkles, X, ShieldCheck } from "lucide-react";
 import { useApp, useLockBody } from "../lib/store";
 import Magnetic from "./ui/Magnetic";
 
@@ -260,7 +260,15 @@ export default function Navbar() {
 
                       {/* Admin panel link — always visible for logged-in users */}
                       {user?.is_superuser && (
-                        <button onClick={() => navigate("/admin")} className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-sand hover:text-cream hover:bg-cream/[0.05] transition-colors">
+                        <button
+                          data-hover
+                          onClick={() => {
+                            setUserMenu(false);
+                            navigate("/admin");
+                          }}
+                          className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-champagne hover:text-gold hover:bg-gold/10 transition-colors"
+                        >
+                          <ShieldCheck className="size-4 shrink-0" />
                           Admin Panel
                         </button>
                       )}

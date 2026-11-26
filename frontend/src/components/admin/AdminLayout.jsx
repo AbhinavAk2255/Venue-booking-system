@@ -118,6 +118,7 @@ export default function AdminLayout({ children }) {
           </button>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-3">
+            
             <span className="text-[11px] tracking-[0.16em] uppercase text-faint hidden sm:block">
               Admin Panel
             </span>
@@ -133,7 +134,12 @@ export default function AdminLayout({ children }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-5 sm:p-8">{children}</main>
+        <main
+          data-lenis-prevent
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 sm:p-8"
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

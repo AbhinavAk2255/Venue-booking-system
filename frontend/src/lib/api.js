@@ -15,11 +15,19 @@ const REFRESH_KEY = "venuva.refresh";
 const USER_KEY = "venuva.user";
 const BOOKINGS_KEY = "venuva.bookings";
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
-export const getRefreshToken = () => localStorage.getItem(REFRESH_KEY);
+// export const getToken = () => localStorage.getItem(TOKEN_KEY);
+// export const getRefreshToken = () => localStorage.getItem(REFRESH_KEY);
+
+// export const getStoredUser = () => {
+//   const user = localStorage.getItem(USER_KEY);
+//   return user ? JSON.parse(user) : null;
+// };
+
+export const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+export const getRefreshToken = () => sessionStorage.getItem(REFRESH_KEY);
 
 export const getStoredUser = () => {
-  const user = localStorage.getItem(USER_KEY);
+  const user = sessionStorage.getItem(USER_KEY);
   return user ? JSON.parse(user) : null;
 };
 
@@ -57,18 +65,18 @@ export function isTokenValid() {
 }
 
 function storeSession(user, access, refresh) {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  localStorage.setItem(TOKEN_KEY, access);
+  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(TOKEN_KEY, access);
 
   if (refresh) {
-    localStorage.setItem(REFRESH_KEY, refresh);
+    sessionStorage.setItem(REFRESH_KEY, refresh);
   }
 }
 
 export function clearSession() {
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
+  sessionStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(REFRESH_KEY);
 }
 
 export function validateSession() {
@@ -126,8 +134,8 @@ async function refreshAccessToken() {
     }
 
     // Store both tokens because refresh-token rotation is enabled.
-    localStorage.setItem(TOKEN_KEY, data.access);
-    localStorage.setItem(REFRESH_KEY, data.refresh);
+    sessionStorage.setItem(TOKEN_KEY, data.access);
+    sessionStorage.setItem(REFRESH_KEY, data.refresh);
 
     return data.access;
   })();

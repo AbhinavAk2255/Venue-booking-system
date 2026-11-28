@@ -21,3 +21,6 @@ gunicorn
 whitenoise
 dj-database-url
 psycopg[binary]
+cloudinary==1.47.0
+django-cloudinary-storage==0.3.0
+

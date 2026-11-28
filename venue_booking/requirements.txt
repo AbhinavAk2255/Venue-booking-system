@@ -19,3 +19,5 @@ urllib3==2.6.3
 google-genai
 gunicorn
 whitenoise
+dj-database-url
+psycopg[binary]

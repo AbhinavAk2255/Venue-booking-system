@@ -7,33 +7,60 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView,UpdateAPIView
 from .models import Venue
 from .permissions import *
+import logging
+
+logger = logging.getLogger(__name__)
 
 
+# class VenueCreateView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+
+#         serializer = VenueSerializer(
+#             data=request.data
+#         )
+
+#         if serializer.is_valid():
+
+#             serializer.save(
+#                 owner=request.user
+#             )
+
+#             return Response(
+#                 serializer.data,
+#                 status=status.HTTP_201_CREATED
+#             )
+
+#         return Response(
+#             serializer.errors,
+#             status=status.HTTP_400_BAD_REQUEST
+#         )
+    
 class VenueCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-
-        serializer = VenueSerializer(
-            data=request.data
-        )
+        serializer = VenueSerializer(data=request.data)
 
         if serializer.is_valid():
+            try:
+                serializer.save(owner=request.user)
 
-            serializer.save(
-                owner=request.user
-            )
+                return Response(
+                    serializer.data,
+                    status=status.HTTP_201_CREATED
+                )
 
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
+            except Exception:
+                logger.exception("VENUE CREATION FAILED")
+                raise
 
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
 class ListVenueView(ListAPIView):
     queryset = Venue.objects.all().order_by('-created_at')
     serializer_class = VenueSerializer
